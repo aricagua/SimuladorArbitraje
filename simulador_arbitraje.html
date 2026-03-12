@@ -1,0 +1,694 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Simulador de Arbitraje</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0b0e11;
+            color: #eaecef;
+            min-height: 100vh;
+            padding: 0 0 32px 0;
+        }
+
+        /* ── Header ── */
+        .app-header {
+            background: linear-gradient(135deg, #1e2329 0%, #2b3139 100%);
+            padding: 16px 20px;
+            text-align: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            border-bottom: 1px solid rgba(240, 185, 11, 0.15);
+            backdrop-filter: blur(10px);
+        }
+
+        .app-header h1 {
+            font-size: 18px;
+            font-weight: 700;
+            color: #f0b90b;
+            letter-spacing: -0.3px;
+        }
+
+        .app-header .subtitle {
+            font-size: 12px;
+            color: #848e9c;
+            margin-top: 2px;
+        }
+
+        /* ── Container ── */
+        .container {
+            max-width: 480px;
+            margin: 0 auto;
+            padding: 12px 16px;
+        }
+
+        /* ── Sections ── */
+        .section {
+            background: #1e2329;
+            border-radius: 16px;
+            padding: 16px;
+            margin-bottom: 12px;
+            border: 1px solid #2b3139;
+            transition: border-color 0.3s;
+        }
+
+        .section:focus-within {
+            border-color: rgba(240, 185, 11, 0.3);
+        }
+
+        .section-label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .section-label .badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 22px;
+            height: 22px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 700;
+            flex-shrink: 0;
+        }
+
+        .badge-blue { background: #1565c0; color: #fff; }
+        .badge-gold { background: #f0b90b; color: #1e2329; }
+        .badge-green { background: #0ecb81; color: #1e2329; }
+
+        /* ── Input Fields ── */
+        .field {
+            margin-bottom: 14px;
+        }
+
+        .field:last-child {
+            margin-bottom: 0;
+        }
+
+        .field label {
+            display: block;
+            font-size: 12px;
+            color: #848e9c;
+            margin-bottom: 6px;
+            font-weight: 500;
+        }
+
+        .field input,
+        .field select {
+            width: 100%;
+            padding: 14px;
+            background: #0b0e11;
+            border: 1px solid #2b3139;
+            border-radius: 10px;
+            color: #eaecef;
+            font-size: 17px;
+            font-family: 'Inter', sans-serif;
+            font-weight: 600;
+            outline: none;
+            transition: border-color 0.2s, box-shadow 0.2s;
+            -webkit-appearance: none;
+            appearance: none;
+        }
+
+        .field input:focus,
+        .field select:focus {
+            border-color: #f0b90b;
+            box-shadow: 0 0 0 3px rgba(240, 185, 11, 0.12);
+        }
+
+        .field select {
+            cursor: pointer;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' fill='none'%3E%3Cpath d='M1 1.5l5 5 5-5' stroke='%23848e9c' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 14px center;
+            padding-right: 36px;
+        }
+
+        .field select option {
+            background: #1e2329;
+            color: #eaecef;
+        }
+
+        /* ── Quick Amount Buttons ── */
+        .quick-amounts {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+            margin-bottom: 14px;
+        }
+
+        .quick-btn {
+            padding: 10px 4px;
+            border: 1px solid #2b3139;
+            border-radius: 10px;
+            background: #0b0e11;
+            color: #848e9c;
+            font-size: 14px;
+            font-weight: 600;
+            font-family: 'Inter', sans-serif;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: center;
+        }
+
+        .quick-btn:hover,
+        .quick-btn.active {
+            background: rgba(240, 185, 11, 0.1);
+            border-color: #f0b90b;
+            color: #f0b90b;
+        }
+
+        .quick-btn:active {
+            transform: scale(0.95);
+        }
+
+        /* ── Results Card ── */
+        .results-card {
+            background: linear-gradient(135deg, #1e2329 0%, #262d34 100%);
+            border-radius: 16px;
+            padding: 20px 16px;
+            margin-bottom: 12px;
+            border: 1px solid #2b3139;
+            overflow: hidden;
+            transition: opacity 0.3s;
+        }
+
+        .results-card.calculating {
+            opacity: 0.6;
+        }
+
+        /* ── ROI Badge ── */
+        .roi-hero {
+            text-align: center;
+            padding: 16px 0 20px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            margin-bottom: 16px;
+        }
+
+        .roi-tag {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+        }
+
+        .roi-tag.profit { background: rgba(14, 203, 129, 0.15); color: #0ecb81; }
+        .roi-tag.loss { background: rgba(246, 70, 93, 0.15); color: #f6465d; }
+
+        .roi-amount {
+            font-size: 32px;
+            font-weight: 800;
+            letter-spacing: -1px;
+            line-height: 1.1;
+        }
+
+        .roi-amount.profit { color: #0ecb81; }
+        .roi-amount.loss { color: #f6465d; }
+
+        .roi-subtitle {
+            font-size: 13px;
+            color: #848e9c;
+            margin-top: 4px;
+        }
+
+        .roi-percentage {
+            font-weight: 700;
+        }
+
+        .roi-percentage.profit { color: #0ecb81; }
+        .roi-percentage.loss { color: #f6465d; }
+
+        /* ── Breakdown rows ── */
+        .breakdown {
+            display: flex;
+            flex-direction: column;
+            gap: 0;
+        }
+
+        .breakdown-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.04);
+            font-size: 13px;
+        }
+
+        .breakdown-row:last-child {
+            border-bottom: none;
+        }
+
+        .breakdown-row .label {
+            color: #848e9c;
+            font-weight: 500;
+        }
+
+        .breakdown-row .value {
+            font-weight: 600;
+            color: #eaecef;
+            text-align: right;
+        }
+
+        .breakdown-row .value.highlight {
+            color: #f0b90b;
+            font-size: 15px;
+        }
+
+        .breakdown-row .value small {
+            display: block;
+            font-size: 11px;
+            color: #848e9c;
+            font-weight: 400;
+        }
+
+        /* ── Copy Button ── */
+        .copy-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(240, 185, 11, 0.08);
+            border: 1px dashed rgba(240, 185, 11, 0.3);
+            border-radius: 10px;
+            padding: 12px 14px;
+            margin-top: 12px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .copy-row:active {
+            background: rgba(240, 185, 11, 0.18);
+        }
+
+        .copy-row .copy-label {
+            font-size: 12px;
+            color: #848e9c;
+        }
+
+        .copy-row .copy-value {
+            font-size: 17px;
+            font-weight: 700;
+            color: #f0b90b;
+        }
+
+        .copy-row .copy-icon {
+            font-size: 16px;
+            margin-left: 8px;
+            opacity: 0.7;
+        }
+
+        .copy-toast {
+            position: fixed;
+            bottom: 80px;
+            left: 50%;
+            transform: translateX(-50%) translateY(20px);
+            background: #0ecb81;
+            color: #0b0e11;
+            font-weight: 600;
+            font-size: 13px;
+            padding: 10px 24px;
+            border-radius: 24px;
+            opacity: 0;
+            pointer-events: none;
+            transition: all 0.3s ease;
+            z-index: 200;
+        }
+
+        .copy-toast.show {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+        }
+
+        /* ── Commission Breakdown ── */
+        .fee-detail {
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid rgba(255,255,255,0.05);
+        }
+
+        .fee-detail-title {
+            font-size: 12px;
+            font-weight: 600;
+            color: #848e9c;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .fee-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 6px 0;
+            font-size: 12px;
+        }
+
+        .fee-row .fee-name {
+            color: #5e6673;
+        }
+
+        .fee-row .fee-val {
+            color: #f6465d;
+            font-weight: 600;
+        }
+
+        .fee-row .fee-val.total {
+            color: #eaecef;
+            font-size: 13px;
+        }
+
+        /* ── Utility ── */
+        .divider {
+            height: 1px;
+            background: rgba(255,255,255,0.04);
+            margin: 6px 0;
+        }
+
+        /* ── Animations ── */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .results-card {
+            animation: fadeIn 0.4s ease;
+        }
+
+        /* ── Responsive tweaks ── */
+        @media (max-width: 380px) {
+            .container { padding: 10px 12px; }
+            .roi-amount { font-size: 28px; }
+            .quick-btn { font-size: 13px; padding: 8px 2px; }
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="app-header">
+        <h1>⚡ Simulador de Arbitraje</h1>
+        <div class="subtitle">BDV → App → Binance → P2P</div>
+    </div>
+
+    <div class="container">
+
+        <!-- SECCIÓN 1: Plataforma y Fondeo -->
+        <div class="section">
+            <div class="section-label">
+                <span class="badge badge-blue">1</span>
+                <span>Plataforma y Fondeo (BDV)</span>
+            </div>
+
+            <div class="field">
+                <label>Aplicación a usar</label>
+                <select id="plataforma" oninput="calcularArbitraje()">
+                    <option value="wally">Wally Tech (~3.20%)</option>
+                    <option value="zinli">Zinli (3.75%)</option>
+                </select>
+            </div>
+
+            <div class="field">
+                <label>Monto a usar en BDV (USD)</label>
+                <div class="quick-amounts">
+                    <button class="quick-btn" onclick="setMonto(100)">$100</button>
+                    <button class="quick-btn" onclick="setMonto(200)">$200</button>
+                    <button class="quick-btn" onclick="setMonto(500)">$500</button>
+                    <button class="quick-btn" onclick="setMonto(1000)">$1000</button>
+                </div>
+                <input type="number" id="montoUsd" value="1000" step="1" inputmode="decimal" oninput="highlightQuickBtn(); calcularArbitraje()">
+            </div>
+
+            <div class="field">
+                <label>Tasa Oficial BDV (Bs/$)</label>
+                <input type="number" id="tasaBdv" value="515" step="0.01" inputmode="decimal" oninput="calcularArbitraje()">
+            </div>
+
+            <div class="field">
+                <label>Comisión Tarjeta BDV (%)</label>
+                <input type="number" id="feeBdv" value="2.5" step="0.1" inputmode="decimal" oninput="calcularArbitraje()">
+            </div>
+        </div>
+
+        <!-- SECCIÓN 2: Binance -->
+        <div class="section">
+            <div class="section-label">
+                <span class="badge badge-gold">2</span>
+                <span>Compra Cripto (Binance)</span>
+            </div>
+
+            <div class="field">
+                <label>Comisión Compra Tarjeta (%)</label>
+                <input type="number" id="feeBinance" value="2.0" step="0.1" inputmode="decimal" oninput="calcularArbitraje()">
+            </div>
+
+            <div class="field">
+                <label>Precio USDT (USD)</label>
+                <input type="number" id="precioUsdt" value="1.04" step="0.00000001" inputmode="decimal" oninput="calcularArbitraje()">
+            </div>
+        </div>
+
+        <!-- SECCIÓN 3: P2P -->
+        <div class="section">
+            <div class="section-label">
+                <span class="badge badge-green">3</span>
+                <span>Venta P2P (Retorno a Bs)</span>
+            </div>
+
+            <div class="field">
+                <label>Tasa P2P Venta (Bs/USDT)</label>
+                <input type="number" id="tasaP2p" value="620" step="0.01" inputmode="decimal" oninput="calcularArbitraje()">
+            </div>
+        </div>
+
+        <!-- RESULTADOS -->
+        <div class="results-card" id="resultados">
+            <div class="roi-hero">
+                <div class="roi-tag profit" id="roiTag">GANANCIA</div>
+                <div class="roi-amount profit" id="gananciaTexto">+0,00 Bs</div>
+                <div class="roi-subtitle">
+                    ROI: <span class="roi-percentage profit" id="roiPorcentaje">0.00</span>%
+                    · <span id="gananciaUsdt">0.00</span> USDT extra
+                </div>
+            </div>
+
+            <div class="breakdown">
+                <div class="breakdown-row">
+                    <span class="label">Inversión Inicial</span>
+                    <span class="value" id="inversionBs">0,00 Bs</span>
+                </div>
+                <div class="breakdown-row">
+                    <span class="label" id="textoMontoApp">Monto en Wally</span>
+                    <span class="value highlight" id="montoApp">0.00 USD</span>
+                </div>
+                <div class="breakdown-row">
+                    <span class="label">USDT recibidos</span>
+                    <span class="value" id="usdtRecibidos">0.00</span>
+                </div>
+                <div class="breakdown-row">
+                    <span class="label">Retorno P2P</span>
+                    <span class="value" id="retornoBs">0,00 Bs</span>
+                </div>
+            </div>
+
+            <!-- Copiar monto -->
+            <div class="copy-row" id="copyRow" onclick="copiarMonto()">
+                <div>
+                    <div class="copy-label" id="copyLabel">Monto a escribir en Wally</div>
+                    <div class="copy-value" id="copyValue">0.00 USD</div>
+                </div>
+                <span class="copy-icon">📋</span>
+            </div>
+
+            <!-- Desglose de comisiones -->
+            <div class="fee-detail">
+                <div class="fee-detail-title">Desglose de Comisiones</div>
+                <div class="fee-row">
+                    <span class="fee-name" id="feeAppLabel">Wally (3.20%)</span>
+                    <span class="fee-val" id="feeAppVal">-$0.00</span>
+                </div>
+                <div class="fee-row">
+                    <span class="fee-name">BDV Tarjeta</span>
+                    <span class="fee-val" id="feeBdvVal">-$0.00</span>
+                </div>
+                <div class="fee-row">
+                    <span class="fee-name">Binance Compra</span>
+                    <span class="fee-val" id="feeBinanceVal">-$0.00</span>
+                </div>
+                <div class="divider"></div>
+                <div class="fee-row">
+                    <span class="fee-name">Total Comisiones</span>
+                    <span class="fee-val total" id="feeTotalVal">-$0.00</span>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Toast de copiado -->
+    <div class="copy-toast" id="copyToast">✓ Monto copiado</div>
+
+    <script>
+        let montoLimpioGlobal = 0;
+
+        function setMonto(val) {
+            document.getElementById('montoUsd').value = val;
+            highlightQuickBtn();
+            calcularArbitraje();
+        }
+
+        function highlightQuickBtn() {
+            const val = parseFloat(document.getElementById('montoUsd').value);
+            document.querySelectorAll('.quick-btn').forEach(btn => {
+                const btnVal = parseInt(btn.textContent.replace('$', ''));
+                btn.classList.toggle('active', btnVal === val);
+            });
+        }
+
+        function copiarMonto() {
+            const texto = montoLimpioGlobal.toFixed(2);
+            navigator.clipboard.writeText(texto).then(() => {
+                const toast = document.getElementById('copyToast');
+                toast.classList.add('show');
+                setTimeout(() => toast.classList.remove('show'), 1800);
+            }).catch(() => {
+                // Fallback para mobile
+                const input = document.createElement('input');
+                input.value = montoLimpioGlobal.toFixed(2);
+                document.body.appendChild(input);
+                input.select();
+                document.execCommand('copy');
+                document.body.removeChild(input);
+                const toast = document.getElementById('copyToast');
+                toast.classList.add('show');
+                setTimeout(() => toast.classList.remove('show'), 1800);
+            });
+        }
+
+        function calcularArbitraje() {
+            const plataforma = document.getElementById('plataforma').value;
+            const montoUsd = parseFloat(document.getElementById('montoUsd').value);
+            const tasaBdv = parseFloat(document.getElementById('tasaBdv').value);
+            const feeBdv = parseFloat(document.getElementById('feeBdv').value) / 100;
+            const feeBinance = parseFloat(document.getElementById('feeBinance').value) / 100;
+            const precioUsdt = parseFloat(document.getElementById('precioUsdt').value);
+            const tasaP2p = parseFloat(document.getElementById('tasaP2p').value);
+
+            if (isNaN(montoUsd) || montoUsd <= 0 || isNaN(tasaBdv) || isNaN(feeBdv) || isNaN(feeBinance) || isNaN(precioUsdt) || isNaN(tasaP2p)) {
+                return;
+            }
+
+            // Comisión de la App
+            let feeApp = 0;
+            let nombreApp = "";
+            let feeAppPct = "";
+
+            if (plataforma === 'wally') {
+                const tasaWallyBase = 0.0299;
+                feeApp = tasaWallyBase + (tasaWallyBase * 0.07);
+                nombreApp = "Wally";
+                feeAppPct = (feeApp * 100).toFixed(2) + "%";
+            } else if (plataforma === 'zinli') {
+                feeApp = 0.0375;
+                nombreApp = "Zinli";
+                feeAppPct = "3.75%";
+            }
+
+            // ── CÁLCULOS ──
+            // 1. Inversión en Bs
+            const inversionBs = montoUsd * tasaBdv;
+
+            // 2. BDV → App
+            const factorTotal = (1 + feeApp) * (1 + feeBdv);
+            const montoLimpioApp = montoUsd / factorTotal;
+            montoLimpioGlobal = montoLimpioApp;
+
+            // Comisiones individuales en USD
+            const comisionApp = montoLimpioApp * feeApp;
+            const comisionBdv = montoLimpioApp * feeBdv;
+
+            // 3. App → Binance
+            const comisionBinanceUSD = montoLimpioApp * feeBinance;
+            const netoParaComprarUSD = montoLimpioApp - comisionBinanceUSD;
+            const usdtRecibidos = netoParaComprarUSD / precioUsdt;
+
+            // 4. Binance → P2P
+            const retornoBs = usdtRecibidos * tasaP2p;
+            const gananciaBs = retornoBs - inversionBs;
+
+            // Métricas
+            const usdtSiP2pDirecto = inversionBs / tasaP2p;
+            const gananciaUsdtVsP2p = usdtRecibidos - usdtSiP2pDirecto;
+            const roi = (gananciaBs / inversionBs) * 100;
+
+            const totalComisiones = comisionApp + comisionBdv + comisionBinanceUSD;
+
+            // ── MOSTRAR RESULTADOS ──
+            const esGanancia = gananciaBs >= 0;
+            const cls = esGanancia ? 'profit' : 'loss';
+
+            // ROI Hero
+            const roiTag = document.getElementById('roiTag');
+            roiTag.textContent = esGanancia ? 'GANANCIA' : 'PÉRDIDA';
+            roiTag.className = 'roi-tag ' + cls;
+
+            const gananciaEl = document.getElementById('gananciaTexto');
+            gananciaEl.textContent = (esGanancia ? '+' : '') + gananciaBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' Bs';
+            gananciaEl.className = 'roi-amount ' + cls;
+
+            const roiPct = document.getElementById('roiPorcentaje');
+            roiPct.textContent = roi.toFixed(2);
+            roiPct.className = 'roi-percentage ' + cls;
+
+            document.getElementById('gananciaUsdt').textContent = gananciaUsdtVsP2p.toFixed(2);
+
+            // Breakdown
+            document.getElementById('inversionBs').textContent = inversionBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' Bs';
+            document.getElementById('textoMontoApp').textContent = 'Monto en ' + nombreApp;
+            document.getElementById('montoApp').textContent = montoLimpioApp.toFixed(2) + ' USD';
+            document.getElementById('usdtRecibidos').textContent = usdtRecibidos.toFixed(2);
+            document.getElementById('retornoBs').textContent = retornoBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' Bs';
+
+            // Copy row
+            document.getElementById('copyLabel').textContent = 'Monto a escribir en ' + nombreApp;
+            document.getElementById('copyValue').textContent = montoLimpioApp.toFixed(2) + ' USD';
+
+            // Fee breakdown
+            document.getElementById('feeAppLabel').textContent = nombreApp + ' (' + feeAppPct + ')';
+            document.getElementById('feeAppVal').textContent = '-$' + comisionApp.toFixed(2);
+            document.getElementById('feeBdvVal').textContent = '-$' + comisionBdv.toFixed(2);
+            document.getElementById('feeBinanceVal').textContent = '-$' + comisionBinanceUSD.toFixed(2);
+            document.getElementById('feeTotalVal').textContent = '-$' + totalComisiones.toFixed(2);
+        }
+
+        // Calcular al cargar
+        highlightQuickBtn();
+        calcularArbitraje();
+    </script>
+
+</body>
+
+</html>
