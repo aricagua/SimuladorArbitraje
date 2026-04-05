@@ -411,7 +411,7 @@
 
     <div class="app-header">
         <h1>⚡ Simulador de Arbitraje</h1>
-        <div class="subtitle">BDV → App → Binance → P2P</div>
+        <div class="subtitle" id="flowSubtitle">BDV → App → Binance → P2P</div>
     </div>
 
     <div class="container">
@@ -425,9 +425,10 @@
 
             <div class="field">
                 <label>Aplicación a usar</label>
-                <select id="plataforma" oninput="calcularArbitraje()">
+                <select id="plataforma" oninput="onPlataformaChange()">
                     <option value="wally">Wally Tech (~3.75%)</option>
                     <option value="zinli">Zinli (3.75%)</option>
+                    <option value="bpay">Bpay (3.3%) — Directo a Binance</option>
                 </select>
             </div>
 
@@ -454,13 +455,13 @@
         </div>
 
         <!-- SECCIÓN 2: Binance -->
-        <div class="section">
+        <div class="section" id="seccionBinance">
             <div class="section-label">
                 <span class="badge badge-gold">2</span>
-                <span>Compra Cripto (Binance)</span>
+                <span id="seccionBinanceTitle">Compra Cripto (Binance)</span>
             </div>
 
-            <div class="field">
+            <div class="field" id="fieldFeeBinance">
                 <label>Comisión Compra Tarjeta (%)</label>
                 <input type="number" id="feeBinance" value="2.0" step="0.1" inputmode="decimal" oninput="calcularArbitraje()">
             </div>
@@ -530,11 +531,15 @@
                     <span class="fee-name" id="feeAppLabel">Wally (3.75%)</span>
                     <span class="fee-val" id="feeAppVal">-$0.00</span>
                 </div>
+                <div class="fee-row" id="feeBpayRow" style="display:none">
+                    <span class="fee-name" id="feeBpayLabel">Bpay (3.3%)</span>
+                    <span class="fee-val" id="feeBpayVal">-$0.00</span>
+                </div>
                 <div class="fee-row">
                     <span class="fee-name">BDV Tarjeta</span>
                     <span class="fee-val" id="feeBdvVal">-$0.00</span>
                 </div>
-                <div class="fee-row">
+                <div class="fee-row" id="feeBinanceRow">
                     <span class="fee-name">Binance Compra</span>
                     <span class="fee-val" id="feeBinanceVal">-$0.00</span>
                 </div>
@@ -588,6 +593,27 @@
             });
         }
 
+        function onPlataformaChange() {
+            const plataforma = document.getElementById('plataforma').value;
+            const isBpay = plataforma === 'bpay';
+
+            // Ocultar/mostrar la comisión de Binance (Bpay va directo)
+            document.getElementById('fieldFeeBinance').style.display = isBpay ? 'none' : 'block';
+            document.getElementById('seccionBinanceTitle').textContent = isBpay ? 'Conversión (Binance)' : 'Compra Cripto (Binance)';
+
+            // Actualizar el subtítulo del flujo
+            document.getElementById('flowSubtitle').textContent = isBpay
+                ? 'BDV → Bpay → Binance → P2P'
+                : 'BDV → App → Binance → P2P';
+
+            // Mostrar/ocultar filas de comisiones
+            document.getElementById('feeAppLabel').parentElement.style.display = isBpay ? 'none' : 'flex';
+            document.getElementById('feeBpayRow').style.display = isBpay ? 'flex' : 'none';
+            document.getElementById('feeBinanceRow').style.display = isBpay ? 'none' : 'flex';
+
+            calcularArbitraje();
+        }
+
         function calcularArbitraje() {
             const plataforma = document.getElementById('plataforma').value;
             const montoUsd = parseFloat(document.getElementById('montoUsd').value);
@@ -596,12 +622,13 @@
             const feeBinance = parseFloat(document.getElementById('feeBinance').value) / 100;
             const precioUsdt = parseFloat(document.getElementById('precioUsdt').value);
             const tasaP2p = parseFloat(document.getElementById('tasaP2p').value);
+            const isBpay = plataforma === 'bpay';
 
-            if (isNaN(montoUsd) || montoUsd <= 0 || isNaN(tasaBdv) || isNaN(feeBdv) || isNaN(feeBinance) || isNaN(precioUsdt) || isNaN(tasaP2p)) {
+            if (isNaN(montoUsd) || montoUsd <= 0 || isNaN(tasaBdv) || isNaN(feeBdv) || isNaN(precioUsdt) || isNaN(tasaP2p)) {
                 return;
             }
 
-            // Comisión de la App
+            // Comisión de la App / Procesador
             let feeApp = 0;
             let nombreApp = "";
             let feeAppPct = "";
@@ -615,25 +642,42 @@
                 feeApp = 0.0375;
                 nombreApp = "Zinli";
                 feeAppPct = "3.75%";
+            } else if (plataforma === 'bpay') {
+                feeApp = 0.033;
+                nombreApp = "Bpay";
+                feeAppPct = "3.30%";
             }
 
             // ── CÁLCULOS ──
             // 1. Inversión en Bs
             const inversionBs = montoUsd * tasaBdv;
 
-            // 2. BDV → App
-            const factorTotal = (1 + feeApp) * (1 + feeBdv);
-            const montoLimpioApp = montoUsd / factorTotal;
-            montoLimpioGlobal = montoLimpioApp;
+            // 2. Cálculos según plataforma
+            let montoLimpioApp, comisionApp, comisionBdv, comisionBinanceUSD, usdtRecibidos;
 
-            // Comisiones individuales en USD
-            const comisionApp = montoLimpioApp * feeApp;
-            const comisionBdv = montoLimpioApp * feeBdv;
+            if (isBpay) {
+                // Bpay: BDV cobra 2.5% extra (para depositar 100 necesitas 102.5)
+                // Bpay deduce 3.3% del depósito (de 100 llegan 96.7 USDT)
+                const montoBpay = montoUsd / (1 + feeBdv);
+                montoLimpioApp = montoBpay;
+                montoLimpioGlobal = montoBpay;
 
-            // 3. App → Binance
-            const comisionBinanceUSD = montoLimpioApp * feeBinance;
-            const netoParaComprarUSD = montoLimpioApp - comisionBinanceUSD;
-            const usdtRecibidos = netoParaComprarUSD / precioUsdt;
+                comisionBdv = montoUsd - montoBpay;
+                comisionApp = montoBpay * feeApp;
+                comisionBinanceUSD = 0;
+                usdtRecibidos = montoBpay * (1 - feeApp);
+            } else {
+                // Wally/Zinli: ambas comisiones son add-ons
+                const factorTotal = (1 + feeApp) * (1 + feeBdv);
+                montoLimpioApp = montoUsd / factorTotal;
+                montoLimpioGlobal = montoLimpioApp;
+
+                comisionApp = montoLimpioApp * feeApp;
+                comisionBdv = montoLimpioApp * feeBdv;
+                comisionBinanceUSD = montoLimpioApp * feeBinance;
+                const netoParaComprarUSD = montoLimpioApp - comisionBinanceUSD;
+                usdtRecibidos = netoParaComprarUSD / precioUsdt;
+            }
 
             // 4. Binance → P2P
             const retornoBs = usdtRecibidos * tasaP2p;
@@ -667,18 +711,26 @@
 
             // Breakdown
             document.getElementById('inversionBs').textContent = inversionBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' Bs';
-            document.getElementById('textoMontoApp').textContent = 'Monto en ' + nombreApp;
-            document.getElementById('montoApp').textContent = montoLimpioApp.toFixed(2) + ' USD';
+            const textoMonto = isBpay ? 'Monto en Bpay (USDT)' : 'Monto en ' + nombreApp;
+            document.getElementById('textoMontoApp').textContent = textoMonto;
+            document.getElementById('montoApp').textContent = montoLimpioApp.toFixed(2) + (isBpay ? ' USDT' : ' USD');
             document.getElementById('usdtRecibidos').textContent = usdtRecibidos.toFixed(2);
             document.getElementById('retornoBs').textContent = retornoBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' Bs';
 
             // Copy row
-            document.getElementById('copyLabel').textContent = 'Monto a escribir en ' + nombreApp;
-            document.getElementById('copyValue').textContent = montoLimpioApp.toFixed(2) + ' USD';
+            document.getElementById('copyLabel').textContent = isBpay
+                ? 'Monto a depositar en Bpay'
+                : 'Monto a escribir en ' + nombreApp;
+            document.getElementById('copyValue').textContent = montoLimpioApp.toFixed(2) + (isBpay ? ' USDT' : ' USD');
 
             // Fee breakdown
-            document.getElementById('feeAppLabel').textContent = nombreApp + ' (' + feeAppPct + ')';
-            document.getElementById('feeAppVal').textContent = '-$' + comisionApp.toFixed(2);
+            if (isBpay) {
+                document.getElementById('feeBpayLabel').textContent = 'Bpay (' + feeAppPct + ')';
+                document.getElementById('feeBpayVal').textContent = '-$' + comisionApp.toFixed(2);
+            } else {
+                document.getElementById('feeAppLabel').textContent = nombreApp + ' (' + feeAppPct + ')';
+                document.getElementById('feeAppVal').textContent = '-$' + comisionApp.toFixed(2);
+            }
             document.getElementById('feeBdvVal').textContent = '-$' + comisionBdv.toFixed(2);
             document.getElementById('feeBinanceVal').textContent = '-$' + comisionBinanceUSD.toFixed(2);
             document.getElementById('feeTotalVal').textContent = '-$' + totalComisiones.toFixed(2);
@@ -686,7 +738,7 @@
 
         // Calcular al cargar
         highlightQuickBtn();
-        calcularArbitraje();
+        onPlataformaChange();
     </script>
 
 </body>
